@@ -1,0 +1,32 @@
+# Environment files and secrets
+.env
+.env.*
+!.env.example
+*.local
+
+# Node dependencies
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build outputs
+dist/
+dist-ssr/
+build/
+
+# Operating System & IDE files
+.DS_Store
+.vscode/
+.idea/
+*.log
+
+# Sensitive Kubernetes secret overlays
+k8s/*secret*.local.yaml
+
+# Kubernetes manifests containing real secrets
+k8s/secret.yaml
+k8s/secrets.yaml
+k8s/secret.yml
+k8s/secrets.yml
