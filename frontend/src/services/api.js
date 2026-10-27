@@ -32,10 +32,21 @@ async function request(method, path, body = null, auth = true) {
     body: body ? JSON.stringify(body) : undefined,
   });
 
-  const data = await res.json();
+  let data;
+  const contentType = res.headers.get("content-type");
+  if (contentType && contentType.includes("application/json")) {
+    try {
+      data = await res.json();
+    } catch {
+      data = { message: "Invalid JSON response from server" };
+    }
+  } else {
+    const text = await res.text().catch(() => "");
+    data = { message: text || `Request failed with status ${res.status}` };
+  }
 
   if (!res.ok) {
-    const err = new Error(data.message || "Request failed");
+    const err = new Error(data.message || `Request failed with status ${res.status}`);
     err.status = res.status;
     throw err;
   }

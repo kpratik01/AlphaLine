@@ -46,11 +46,23 @@ exports.getShop = async (req, res, next) => {
 exports.createShop = async (req, res, next) => {
   try {
     const { name, category, address, avgWait } = req.body;
+
+    if (!name || !name.trim()) {
+      return res.status(400).json({ success: false, message: "Shop name is required" });
+    }
+    if (!address || !address.trim()) {
+      return res.status(400).json({ success: false, message: "Shop address is required" });
+    }
+
+    const validCategories = ["Banking", "Healthcare", "Government", "Other"];
+    const normalizedCategory = validCategories.includes(category) ? category : "Other";
+    const normalizedWait = Math.max(1, parseInt(avgWait, 10) || 10);
+
     const shop = await Shop.create({
-      name,
-      category,
-      address,
-      avgWait: parseInt(avgWait) || 10,
+      name: name.trim(),
+      category: normalizedCategory,
+      address: address.trim(),
+      avgWait: normalizedWait,
       owner: req.user._id,
       status: "active",
       queueLength: 0,
@@ -58,10 +70,14 @@ exports.createShop = async (req, res, next) => {
       noshowsToday: 0,
     });
 
-    // Broadcast to all connected sockets
-    req.io.emit("shop:created", shop);
+    const populatedShop = await Shop.findById(shop._id).populate("owner", "name email");
 
-    res.status(201).json({ success: true, shop });
+    // Broadcast to all connected sockets
+    if (req.io) {
+      req.io.emit("shop:created", populatedShop || shop);
+    }
+
+    res.status(201).json({ success: true, shop: populatedShop || shop });
   } catch (err) {
     next(err);
   }
@@ -131,7 +147,20 @@ exports.deleteShop = async (req, res, next) => {
 exports.myShops = async (req, res, next) => {
   try {
     const shops = await Shop.find({ owner: req.user._id }).sort({ createdAt: -1 });
-    res.json({ success: true, count: shops.length, shops });
+
+    const shopList = await Promise.all(
+      shops.map(async (shop) => {
+        const queueLength = await QueueEntry.countDocuments({
+          shop: shop._id,
+          status: { $in: ["waiting", "serving", "pending", "accepted"] },
+        });
+        const obj = shop.toObject();
+        obj.queueLength = queueLength;
+        return obj;
+      })
+    );
+
+    res.json({ success: true, count: shopList.length, shops: shopList });
   } catch (err) {
     next(err);
   }

@@ -329,7 +329,8 @@ export default function AdminDashboard() {
   const [verifyTok, setVerifyTok] = useState("");
   const [verifyRes, setVerifyRes] = useState(null);
   const [verifying, setVerifying] = useState(false);
-  const [newShop, setNewShop] = useState({ name: "", category: "Banking", address: "", avgWait: "" });
+  const [newShop, setNewShop] = useState({ name: "", category: "Banking", address: "", avgWait: "10" });
+  const [modalError, setModalError] = useState("");
   const [creating, setCreating] = useState(false);
   const [socket, setSocket] = useState(null);
   const [queueFilter, setQueueFilter] = useState("all");
@@ -341,6 +342,12 @@ export default function AdminDashboard() {
   activeShopRef.current = activeShop;
 
   const notify = (msg) => setToast(msg);
+
+  const openNewShopModal = () => {
+    setModalError("");
+    setNewShop({ name: "", category: "Banking", address: "", avgWait: "10" });
+    setModal("newshop");
+  };
 
   const openEditProfile = () => {
     setAdminProfileForm({
@@ -548,18 +555,52 @@ export default function AdminDashboard() {
     setVerifying(false);
   };
 
-  const createShop = async () => {
-    if (!newShop.name || !newShop.address) { notify("Fill in all required fields"); return; }
+  const createShop = async (e) => {
+    if (e) e.preventDefault();
+    setModalError("");
+    const name = newShop.name?.trim();
+    const address = newShop.address?.trim();
+    const category = newShop.category || "Banking";
+    const avgWait = Math.max(1, parseInt(newShop.avgWait, 10) || 10);
+
+    if (!name) {
+      setModalError("Shop name is required");
+      notify("Please enter a shop name");
+      return;
+    }
+    if (!address) {
+      setModalError("Shop address is required");
+      notify("Please enter a shop address");
+      return;
+    }
+
     setCreating(true);
     try {
-      await api.shops.create({ name: newShop.name, category: newShop.category, address: newShop.address, avgWait: parseInt(newShop.avgWait) || 10 });
-      await loadShops();
+      const res = await api.shops.create({ name, category, address, avgWait });
+      const createdShop = res.shop;
+
+      // Immediately insert into state so it shows up instantly without waiting
+      if (createdShop) {
+        setShops((prev) => [createdShop, ...prev.filter((s) => s._id !== createdShop._id)]);
+        setActiveShop(createdShop);
+        activeShopRef.current = createdShop;
+      }
+
       setModal(null);
-      setNewShop({ name: "", category: "Banking", address: "", avgWait: "" });
+      setModalError("");
+      setNewShop({ name: "", category: "Banking", address: "", avgWait: "10" });
       setSection("shops");
-      notify(`Shop "${newShop.name}" created successfully`);
-    } catch (e) { notify(e.message || "Failed to create shop"); }
-    setCreating(false);
+      notify(`Shop "${name}" created successfully ✓`);
+
+      // Sync state and live counters from database
+      await loadShops();
+    } catch (e) {
+      const errMsg = e.message || "Failed to create shop";
+      setModalError(errMsg);
+      notify(errMsg);
+    } finally {
+      setCreating(false);
+    }
   };
 
   const serveCustomer = async (token) => {
@@ -667,11 +708,15 @@ export default function AdminDashboard() {
           <div className="pg-title">Service Counters</div>
           <div className="pg-sub">Manage your active locations and service points</div>
         </div>
-        <button className="ad-btn purple" onClick={() => setModal("newshop")}>+ Add New Shop</button>
+        <button className="ad-btn purple" onClick={openNewShopModal}>+ Add New Shop</button>
       </div>
       {loading && <div className="ad-loading"><div className="ad-spinner" />Loading counters...</div>}
       {!loading && shops.length === 0 && (
-        <div className="ad-empty"><div className="ico">🏪</div><p>No shops created yet</p></div>
+        <div className="ad-empty">
+          <div className="ico">🏪</div>
+          <p style={{ marginBottom: "1rem" }}>No shops created yet</p>
+          <button className="ad-btn purple" onClick={openNewShopModal}>+ Add Your First Shop</button>
+        </div>
       )}
       <div className="ad-shops">
         {shops.map(shop => (
@@ -743,21 +788,33 @@ export default function AdminDashboard() {
   /* Render Queue Management */
   const renderQueue = () => (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.75rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "1.75rem", flexWrap: "wrap", gap: "1rem" }}>
         <div>
           <div className="pg-title">Queue Control Console</div>
           <div style={{ color: "#64748b", fontSize: "0.92rem", fontWeight: 600 }}>
             {activeShop?.name || "No shop selected"} · {new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" })}
           </div>
         </div>
-        {shops.length > 1 && (
-          <select className="ad-shop-select"
-            value={activeShop?._id || ""}
-            onChange={e => { const s = shops.find(x => x._id === e.target.value); if (s) setActiveShop(s); }}>
-            {shops.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
-          </select>
-        )}
+        <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+          <button className="ad-btn purple" style={{ padding: "8px 18px", fontSize: "0.85rem" }} onClick={openNewShopModal}>+ Add New Shop</button>
+          {shops.length > 1 && (
+            <select className="ad-shop-select"
+              value={activeShop?._id || ""}
+              onChange={e => { const s = shops.find(x => x._id === e.target.value); if (s) setActiveShop(s); }}>
+              {shops.map(s => <option key={s._id} value={s._id}>{s.name}</option>)}
+            </select>
+          )}
+        </div>
       </div>
+
+      {(!activeShop || shops.length === 0) && (
+        <div className="ad-empty" style={{ background: "#ffffff", borderRadius: 24, border: "1px dashed #cbd5e1", margin: "1.5rem 0", padding: "3rem", boxShadow: "0 4px 20px rgba(15,23,42,0.04)" }}>
+          <div className="ico">🏪</div>
+          <div style={{ fontSize: "1.2rem", color: "#0f172a", marginBottom: 8, fontWeight: 800, fontFamily: "'Outfit', sans-serif" }}>No Service Counters Yet</div>
+          <p style={{ color: "#64748b", marginBottom: "1.5rem", maxWidth: 440, marginInline: "auto", fontSize: "0.92rem" }}>Create your first service counter to start accepting customers and managing digital queues in real time.</p>
+          <button className="ad-btn purple" style={{ padding: "12px 28px", fontSize: "0.95rem" }} onClick={openNewShopModal}>+ Create First Counter</button>
+        </div>
+      )}
 
       <div className="ad-kpis">
         {kpis.map(k => (
@@ -898,6 +955,7 @@ export default function AdminDashboard() {
             ALPHALine <span style={{ fontSize: "0.8rem", color: "#64748b", fontWeight: 600 }}>/ Merchant Admin</span>
           </div>
           <div className="ad-nav-r">
+            <button className="ad-btn purple" style={{ padding: "7px 16px", fontSize: "0.85rem" }} onClick={openNewShopModal}>+ Add Shop</button>
             <div className="live-pill"><div className="live-d" />Live</div>
             {activeShop && <span className="ad-shop-tag">🏦 {activeShop.name}</span>}
             <div className="ad-avatar">{initials}</div>
@@ -986,35 +1044,44 @@ export default function AdminDashboard() {
             <div className="ad-modal" onClick={e => e.stopPropagation()}>
               <div className="ad-mtitle">🏪 Create Service Counter</div>
               <div className="ad-msub">Add a new shop location to your account</div>
-              <div className="ad-fgroup">
-                <label className="ad-flabel">Shop Name *</label>
-                <input className="ad-finput" placeholder="e.g. Metro Bank – Central Branch"
-                  value={newShop.name} onChange={e => setNewShop({ ...newShop, name: e.target.value })} />
-              </div>
-              <div className="ad-fgroup">
-                <label className="ad-flabel">Category</label>
-                <select className="ad-fselect" value={newShop.category}
-                  onChange={e => setNewShop({ ...newShop, category: e.target.value })}>
-                  <option>Banking</option><option>Healthcare</option>
-                  <option>Government</option><option>Other</option>
-                </select>
-              </div>
-              <div className="ad-fgroup">
-                <label className="ad-flabel">Address *</label>
-                <input className="ad-finput" placeholder="Downtown Financial District"
-                  value={newShop.address} onChange={e => setNewShop({ ...newShop, address: e.target.value })} />
-              </div>
-              <div className="ad-fgroup">
-                <label className="ad-flabel">Avg Service Wait (minutes)</label>
-                <input className="ad-finput" type="number" placeholder="10" min="1"
-                  value={newShop.avgWait} onChange={e => setNewShop({ ...newShop, avgWait: e.target.value })} />
-              </div>
-              <div className="ad-mfooter">
-                <button className="ad-mbtn" onClick={() => setModal(null)}>Cancel</button>
-                <button className="ad-mbtn p" onClick={createShop} disabled={creating}>
-                  {creating ? "Creating..." : "Create Counter"}
-                </button>
-              </div>
+
+              {modalError && (
+                <div style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: "12px", padding: "10px 14px", color: "#dc2626", fontSize: "0.85rem", fontWeight: 700, marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span>⚠️</span> {modalError}
+                </div>
+              )}
+
+              <form onSubmit={createShop}>
+                <div className="ad-fgroup">
+                  <label className="ad-flabel">Shop Name *</label>
+                  <input className="ad-finput" placeholder="e.g. Metro Bank – Central Branch"
+                    value={newShop.name} onChange={e => { setNewShop({ ...newShop, name: e.target.value }); setModalError(""); }} autoFocus required />
+                </div>
+                <div className="ad-fgroup">
+                  <label className="ad-flabel">Category</label>
+                  <select className="ad-fselect" value={newShop.category}
+                    onChange={e => setNewShop({ ...newShop, category: e.target.value })}>
+                    <option>Banking</option><option>Healthcare</option>
+                    <option>Government</option><option>Other</option>
+                  </select>
+                </div>
+                <div className="ad-fgroup">
+                  <label className="ad-flabel">Address *</label>
+                  <input className="ad-finput" placeholder="Downtown Financial District"
+                    value={newShop.address} onChange={e => { setNewShop({ ...newShop, address: e.target.value }); setModalError(""); }} required />
+                </div>
+                <div className="ad-fgroup">
+                  <label className="ad-flabel">Avg Service Wait (minutes)</label>
+                  <input className="ad-finput" type="number" placeholder="10" min="1"
+                    value={newShop.avgWait} onChange={e => setNewShop({ ...newShop, avgWait: e.target.value })} />
+                </div>
+                <div className="ad-mfooter">
+                  <button type="button" className="ad-mbtn" onClick={() => setModal(null)}>Cancel</button>
+                  <button type="submit" className="ad-mbtn p" disabled={creating}>
+                    {creating ? "Creating Counter..." : "Create Counter"}
+                  </button>
+                </div>
+              </form>
             </div>
           </div>
         )}

@@ -20,17 +20,62 @@ const app    = express();
 const server = http.createServer(app);
 
 // ── CORS ──────────────────────────────────────────────────────────────────────
-const allowedOrigins = (process.env.ALLOWED_ORIGINS || "http://localhost:5173")
+const configuredOrigins = (process.env.ALLOWED_ORIGINS || "")
   .split(",")
-  .map((o) => o.trim());
+  .map((o) => o.trim().replace(/\/$/, ""))
+  .filter(Boolean);
+
+const defaultAllowedOrigins = [
+  "http://localhost:5173",
+  "http://localhost:3000",
+  "http://localhost:80",
+  "http://localhost",
+  "http://127.0.0.1:5173",
+  "http://127.0.0.1:3000",
+  "http://127.0.0.1:80",
+  "http://127.0.0.1",
+];
+
+const isOriginAllowed = (origin) => {
+  // Allow non-browser requests (Postman, curl, server-to-server)
+  if (!origin) return true;
+
+  const clean = origin.replace(/\/$/, "");
+
+  // Wildcard allowed
+  if (configuredOrigins.includes("*")) return true;
+
+  // Direct match in configured or default origins
+  if (configuredOrigins.includes(clean) || defaultAllowedOrigins.includes(clean)) {
+    return true;
+  }
+
+  // Allow all Vercel production and preview deployments
+  if (/^https:\/\/.*\.vercel\.app$/.test(clean)) {
+    return true;
+  }
+
+  // Allow Render domains
+  if (/^https:\/\/.*\.onrender\.com$/.test(clean)) {
+    return true;
+  }
+
+  return false;
+};
 
 const corsOptions = {
   origin: (origin, cb) => {
-    if (!origin || allowedOrigins.includes(origin)) return cb(null, true);
-    cb(new Error(`CORS blocked: ${origin}`));
+    if (isOriginAllowed(origin)) {
+      return cb(null, true);
+    }
+    // Return false without throwing an unhandled Error to let browser handle rejection cleanly
+    console.warn(`[CORS] Rejected origin: ${origin}`);
+    return cb(null, false);
   },
   credentials: true,
   methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+  optionsSuccessStatus: 204,
 };
 
 app.use(cors(corsOptions));
