@@ -621,7 +621,7 @@ export default function LoginPage() {
           <AnimateIn direction="up" delay={120}>
             <div className="lp-card">
               <div className="lp-card-title">
-                {activeTab === "login" ? "Welcome Back " : "Create Account ✨"}
+                {activeTab === "login" ? "Welcome Back ALPHiens" : "Create Account ✨"}
               </div>
               <div className="lp-card-sub">
                 {activeTab === "login"

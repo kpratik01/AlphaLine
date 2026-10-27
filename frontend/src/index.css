@@ -10,7 +10,7 @@
 
   --accent-violet: #7c3aed;
   --accent-violet-light: #8b5cf6;
-  --accent-pink: #db2777;
+  --accent-pink: #ffc5df;
   --accent-pink-light: #ec4899;
   --accent-cyan: #0284c7;
   --accent-cyan-light: #06b6d4;
@@ -293,7 +293,7 @@ button {
 
 .badge-pink {
   background: rgba(219, 39, 119, 0.12);
-  color: #db2777;
+  color: #fefefe;
   border: 1px solid rgba(219, 39, 119, 0.3);
 }
 

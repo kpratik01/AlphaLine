@@ -227,13 +227,14 @@ const css = `
 
   /* OVERLAY & MODAL */
   .ad-overlay {
-    position: fixed; inset: 0; z-index: 300; background: rgba(15, 23, 42, 0.5);
-    backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: center; padding: 1rem;
+    position: fixed; inset: 0; z-index: 1000; background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+    display: flex; align-items: center; justify-content: center; padding: 1rem;
   }
   .ad-modal {
     background: #ffffff; border: 1px solid #e2e8f0; border-radius: 28px;
-    padding: 2.25rem; width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto;
-    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.15);
+    padding: 2.25rem; width: 100%; max-width: 480px; max-height: 90vh; overflow-y: auto;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.2); position: relative; z-index: 1001;
   }
   .ad-mtitle { font-size: 1.4rem; font-weight: 900; color: #0f172a; margin-bottom: 6px; font-family: 'Outfit', sans-serif; }
   .ad-msub { font-size: 0.9rem; color: #64748b; margin-bottom: 1.5rem; font-weight: 600; }
@@ -249,13 +250,13 @@ const css = `
 
   .ad-minput, .ad-finput, .ad-fselect {
     width: 100%; padding: 12px 18px;
-    background: #ffffff; border: 1px solid #e2e8f0;
+    background: #ffffff; border: 1.5px solid #cbd5e1;
     border-radius: 14px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 0.92rem;
     outline: none; color: #0f172a; transition: all 0.25s ease; font-weight: 600;
   }
   .ad-minput:focus, .ad-finput:focus { border-color: #7c3aed; box-shadow: 0 0 0 3px rgba(124, 58, 237, 0.15); }
   .ad-fgroup { margin-bottom: 1.25rem; }
-  .ad-flabel { display: block; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #64748b; margin-bottom: 8px; }
+  .ad-flabel { display: block; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; color: #475569; margin-bottom: 8px; }
 
   /* VERIFY RESULT */
   .verify-result { margin-top: 16px; padding: 16px; border-radius: 16px; font-size: 0.9rem; font-weight: 700; }
@@ -705,10 +706,10 @@ export default function AdminDashboard() {
     <div>
       <div className="pg-h">
         <div>
-          <div className="pg-title">Service Counters</div>
+          <div className="pg-title">My Shops</div>
           <div className="pg-sub">Manage your active locations and service points</div>
         </div>
-        <button className="ad-btn purple" onClick={openNewShopModal}>+ Add New Shop</button>
+        <button className="ad-btn purple" id="shops-add-btn" onClick={openNewShopModal}>+ Add New Shop</button>
       </div>
       {loading && <div className="ad-loading"><div className="ad-spinner" />Loading counters...</div>}
       {!loading && shops.length === 0 && (
@@ -810,9 +811,9 @@ export default function AdminDashboard() {
       {(!activeShop || shops.length === 0) && (
         <div className="ad-empty" style={{ background: "#ffffff", borderRadius: 24, border: "1px dashed #cbd5e1", margin: "1.5rem 0", padding: "3rem", boxShadow: "0 4px 20px rgba(15,23,42,0.04)" }}>
           <div className="ico">🏪</div>
-          <div style={{ fontSize: "1.2rem", color: "#0f172a", marginBottom: 8, fontWeight: 800, fontFamily: "'Outfit', sans-serif" }}>No Service Counters Yet</div>
-          <p style={{ color: "#64748b", marginBottom: "1.5rem", maxWidth: 440, marginInline: "auto", fontSize: "0.92rem" }}>Create your first service counter to start accepting customers and managing digital queues in real time.</p>
-          <button className="ad-btn purple" style={{ padding: "12px 28px", fontSize: "0.95rem" }} onClick={openNewShopModal}>+ Create First Counter</button>
+          <div style={{ fontSize: "1.2rem", color: "#0f172a", marginBottom: 8, fontWeight: 800, fontFamily: "'Outfit', sans-serif" }}>No Shops Added Yet</div>
+          <p style={{ color: "#64748b", marginBottom: "1.5rem", maxWidth: 440, marginInline: "auto", fontSize: "0.92rem" }}>Add your first shop to start accepting customers and managing digital queues in real time.</p>
+          <button className="ad-btn purple" id="queue-empty-add-btn" style={{ padding: "12px 28px", fontSize: "0.95rem" }} onClick={openNewShopModal}>+ Add Shop</button>
         </div>
       )}
 
@@ -955,7 +956,7 @@ export default function AdminDashboard() {
             ALPHALine <span style={{ fontSize: "0.8rem", color: "#64748b", fontWeight: 600 }}>/ Merchant Admin</span>
           </div>
           <div className="ad-nav-r">
-            <button className="ad-btn purple" style={{ padding: "7px 16px", fontSize: "0.85rem" }} onClick={openNewShopModal}>+ Add Shop</button>
+            <button type="button" className="ad-btn purple" id="navbar-add-shop-btn" style={{ padding: "7px 16px", fontSize: "0.85rem", cursor: "pointer" }} onClick={openNewShopModal}>+ Add Shop</button>
             <div className="live-pill"><div className="live-d" />Live</div>
             {activeShop && <span className="ad-shop-tag">🏦 {activeShop.name}</span>}
             <div className="ad-avatar">{initials}</div>
@@ -979,6 +980,9 @@ export default function AdminDashboard() {
                 {n.ico} {n.label}
               </div>
             ))}
+            <div className="ad-s-item" id="sidebar-add-shop-btn" onClick={openNewShopModal} style={{ color: "#7c3aed" }}>
+              ➕ Add Shop
+            </div>
             <span className="ad-s-lbl">Analytics</span>
             <div className={`ad-s-item ${section === "analytics" ? "on" : ""}`} onClick={() => setSection("analytics")}>
               📊 Analytics
@@ -1042,8 +1046,8 @@ export default function AdminDashboard() {
         {modal === "newshop" && (
           <div className="ad-overlay" onClick={() => setModal(null)}>
             <div className="ad-modal" onClick={e => e.stopPropagation()}>
-              <div className="ad-mtitle">🏪 Create Service Counter</div>
-              <div className="ad-msub">Add a new shop location to your account</div>
+              <div className="ad-mtitle">🏪 Add New Shop</div>
+              <div className="ad-msub">Fill in the details below to add a new shop to your account</div>
 
               {modalError && (
                 <div style={{ background: "rgba(239, 68, 68, 0.1)", border: "1px solid rgba(239, 68, 68, 0.3)", borderRadius: "12px", padding: "10px 14px", color: "#dc2626", fontSize: "0.85rem", fontWeight: 700, marginBottom: "16px", display: "flex", alignItems: "center", gap: "8px" }}>
@@ -1077,8 +1081,8 @@ export default function AdminDashboard() {
                 </div>
                 <div className="ad-mfooter">
                   <button type="button" className="ad-mbtn" onClick={() => setModal(null)}>Cancel</button>
-                  <button type="submit" className="ad-mbtn p" disabled={creating}>
-                    {creating ? "Creating Counter..." : "Create Counter"}
+                  <button type="submit" className="ad-mbtn p" disabled={creating} id="submit-add-shop-btn">
+                    {creating ? "Adding Shop..." : "Add Shop Details ✓"}
                   </button>
                 </div>
               </form>
